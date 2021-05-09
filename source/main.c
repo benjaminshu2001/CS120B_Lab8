@@ -1,7 +1,7 @@
 /*	Author: Benjamin Shu
  *  Partner(s) Name: 
  *	Lab Section: 22
- *	Assignment: Lab #8 Exercise #2
+ *	Assignment: Lab #8 Exercise #3
  *	Exercise Description: [optional - include for your own benefit]
  *
  *	I acknowledge all content contained herein, excluding template or example
@@ -15,84 +15,59 @@
 #include "timer.h"
 #include "pwm.h"
 
-enum Sound_States {Start, Wait, Up, Down, Pressed, Off} Sound_State;
+enum Sound_States {Start, Play, Stop} Sound_State;
 
 unsigned count = 0; //accounts for position
-double note[8] = {261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25};
-unsigned char isOff = 0;
+double note[9] = {261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25, -1};
 
 void TckFctSound() {
 	switch(Sound_State) {
 		case Start:
-			Sound_State = Wait;
-			break;
-		case Wait:
-			if((~PINA & 0x07) == 0x01) {
-				Sound_State = Up;
-			}
-			else if((~PINA & 0x07) == 0x02) {
-				Sound_State = Down;
-			}
-			else if((~PINA & 0x07) == 0x04) {
-				Sound_State = Off;
+			if((~PINA & 0x01) == 0x01) {
+				Sound_State = Play;
 			}
 			else {
-				Sound_State = Wait;
+				Sound_State = Start;
 			}
 			break;
-		case Up:
-			Sound_State = Pressed;
+		case Play:
+			if(note[count] != -1) {
+				TimerSet(1000);
+				Sound_State = Play;
+			}
+			else if(note[count] == -1 && (~PINA & 0x01) == 0x00) {
+				Sound_State = Play;
+			}
+			else if(note[count] == -1 && (~PINA & 0x01) == 0x01) {
+				count = 0;
+				TimerSet(100);
+				Sound_State = Stop;
+			}
 			break;
-		case Down:
-			Sound_State = Pressed;
-			break;
-		case Pressed:
-			if((~PINA & 0x07) == 0x00) {
-				Sound_State = Wait;
+		case Stop:
+			if((~PINA & 0x01) == 0x01) {
+				Sound_State = Stop;
 			}
 			else {
-				Sound_State = Pressed;
+				Sound_State = Start;
 			}
-			break;
-		case Off:
-			Sound_State = Pressed;
 			break;
 	}
 	switch(Sound_State) {
 		case Start:
+			set_PWM(0);
 			break;
-		case Wait:
-			break;
-		case Up:
-			if(count < 7) {
-				count++;
-			}
-			if(isOff) {
-				set_PWM(note[count]);
-			}
-			break;
-		case Down:
-			if(count > 0) {
-				count--;
-			}
-			if(isOff) {
-				set_PWM(note[count]);
-			}
-			break;
-		case Pressed:
-			break;
-		case Off:
-			if(isOff == 0) {
-				isOff = 1;
-				set_PWM(note[count]);
+		case Play:
+			if(note[count] != 0) {
+				TimerSet(500);
 			}
 			else {
-				isOff = 0;
-				set_PWM(0);
+				TimerSet(100);
 			}
-
+			set_PWM(note[count]);
+			count++;
 			break;
-		default:
+		case Stop:
 			set_PWM(0);
 			break;
 	}
